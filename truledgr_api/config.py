@@ -5,16 +5,21 @@ from typing import get_type_hints
 _using_base_model_fallback = False
 try:
     # pydantic v2 moved BaseSettings to pydantic-settings package
-    from pydantic_settings import BaseSettings  # type: ignore
+    from pydantic_settings import BaseSettings
+    from pydantic import field_validator
+    _has_field_validator = True
 except Exception:
     try:
         # pydantic may still expose BaseSettings in some installs
         from pydantic import BaseSettings  # type: ignore
+        from pydantic import field_validator  # type: ignore
+        _has_field_validator = True
     except Exception:
         # Final fallback: use pydantic.BaseModel so the app can still run
         import pydantic as _pyd
 
         BaseSettings = _pyd.BaseModel  # type: ignore
+        _has_field_validator = False
         _using_base_model_fallback = True
 
 
@@ -23,6 +28,66 @@ class Settings(BaseSettings):
     debug: bool = True
     host: str = "127.0.0.1"
     port: int = 8000
+    
+    # Database settings - REQUIRED (async by default)
+    database_url: str
+    
+    # JWT settings
+    secret_key: str = "your-secret-key-change-in-production"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 15
+    refresh_token_expire_days: int = 7
+    
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Validate database_url manually if field_validator is not available
+        if not _has_field_validator and not self.database_url:
+            raise ValueError(
+                "DATABASE_URL is required. Please set it in your .env file. "
+                "Examples:\n"
+                "  For SQLite (async): DATABASE_URL=sqlite+aiosqlite:///./truledgr.db\n"
+                "  For PostgreSQL (async): DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/truledgr"
+            )
+        # Convert to async URL if it's not already async
+        self.database_url = self._ensure_async_url(self.database_url)
+    
+    def _ensure_async_url(self, url: str) -> str:
+        """Ensure the database URL is async-compatible."""
+        if url.startswith("sqlite://"):
+            return url.replace("sqlite://", "sqlite+aiosqlite://")
+        elif url.startswith("postgresql://"):
+            return url.replace("postgresql://", "postgresql+asyncpg://")
+        elif url.startswith("mysql://"):
+            return url.replace("mysql://", "mysql+aiomysql://")
+        else:
+            # Already async or unknown format, return as-is
+            return url
+    
+    if _has_field_validator:
+        @field_validator('database_url')
+        @classmethod
+        def validate_database_url(cls, v):
+            if not v:
+                raise ValueError(
+                    "DATABASE_URL is required. Please set it in your .env file. "
+                    "Examples:\n"
+                    "  For SQLite (async): DATABASE_URL=sqlite+aiosqlite:///./truledgr.db\n"
+                    "  For PostgreSQL (async): DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/truledgr"
+                )
+            return v
+    
+    @property
+    def sync_database_url(self) -> str:
+        """Convert async database URL back to sync version for compatibility."""
+        if self.database_url.startswith("sqlite+aiosqlite://"):
+            return self.database_url.replace("sqlite+aiosqlite://", "sqlite://")
+        elif self.database_url.startswith("postgresql+asyncpg://"):
+            return self.database_url.replace("postgresql+asyncpg://", "postgresql://")
+        elif self.database_url.startswith("mysql+aiomysql://"):
+            return self.database_url.replace("mysql+aiomysql://", "mysql://")
+        else:
+            # Return as-is for unknown formats
+            return self.database_url
 
     class Config:
         env_file = ".env"
