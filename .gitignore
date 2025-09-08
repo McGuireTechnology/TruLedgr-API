@@ -131,7 +131,6 @@ venv.bak/
 # Cython debug symbols
 cython_debug/
 
-# VS Code
-.vscode/
+
 
 truledgr_dev.db

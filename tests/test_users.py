@@ -17,8 +17,9 @@ def session_fixture():
     engine = create_engine(
         "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
     )
-    # Only create the User table for these tests
-    User.metadata.create_all(engine)
+    # Create all tables for testing
+    from sqlmodel import SQLModel
+    SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         yield session
 
