@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlmodel import Session, select
-from typing import List
+from typing import List, Optional
 from datetime import datetime, timezone
 
 from ..database import get_db
@@ -11,7 +11,12 @@ from ..utils.auth import (
     create_user_session, 
     revoke_user_session,
     get_active_sessions,
-    verify_password
+    verify_password,
+    get_admin_dependency,
+    create_impersonation_session,
+    end_impersonation_session,
+    get_current_user_with_impersonation,
+    get_impersonation_sessions
 )
 from ..models.user import User
 from ..models.auth import (
@@ -24,11 +29,16 @@ from ..models.auth import (
     RevokeSessionRequest,
     UserSession,
     UserOAuthAccount,
-    SessionStatus
+    SessionStatus,
+    ImpersonateRequest,
+    ImpersonateResponse,
+    EndImpersonationRequest,
+    ImpersonationInfo,
+    ImpersonationSession
 )
 
 
-router = APIRouter(prefix="/auth")
+router = APIRouter()
 
 @router.post("/login", response_model=TokenResponse, tags=["Authentication"])
 async def login(
@@ -143,7 +153,7 @@ async def logout(
 
 
 
-@router.get("/me", response_model=UserAuthInfo, tags=["Profile"])
+@router.get("/me", response_model=UserAuthInfo, tags=["User Profile"])
 async def get_current_user_info(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
@@ -270,3 +280,143 @@ async def revoke_all_sessions(
     db.commit()
     
     return {"message": f"Revoked {len(sessions)} sessions"}
+
+
+# Impersonation endpoints
+@router.post("/impersonations", response_model=ImpersonateResponse, tags=["Admin"])
+async def start_impersonation(
+    request: ImpersonateRequest,
+    req: Request,
+    admin_user: User = Depends(get_admin_dependency),
+    db: Session = Depends(get_db)
+):
+    """Start impersonating another user (admin only)."""
+    if not admin_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Admin user ID is missing"
+        )
+    
+    # Prevent self-impersonation
+    if admin_user.id == request.target_user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot impersonate yourself"
+        )
+    
+    access_token, refresh_token, session_id = create_impersonation_session(
+        db=db,
+        admin_user_id=admin_user.id,
+        target_user_id=request.target_user_id,
+        reason=request.reason
+    )
+    
+    return ImpersonateResponse(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        token_type="bearer",
+        expires_in=900,  # 15 minutes
+        target_user_id=request.target_user_id,
+        admin_user_id=admin_user.id,
+        impersonation_session_id=session_id
+    )
+
+
+@router.delete("/impersonations", tags=["Admin"])
+async def end_impersonation(
+    request: EndImpersonationRequest,
+    admin_user: User = Depends(get_admin_dependency),
+    db: Session = Depends(get_db)
+):
+    """End an impersonation session (admin only)."""
+    if not admin_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Admin user ID is missing"
+        )
+    
+    # If no session ID provided, try to get it from current token
+    session_id = request.impersonation_session_id
+    if not session_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Impersonation session ID required"
+        )
+    
+    end_impersonation_session(db, session_id, admin_user.id)
+    
+    return {"message": "Impersonation session ended successfully"}
+
+
+@router.get("/impersonations", response_model=List[ImpersonationInfo], tags=["Admin"])
+async def list_impersonation_sessions(
+    admin_user: User = Depends(get_admin_dependency),
+    db: Session = Depends(get_db)
+):
+    """List all impersonation sessions for current admin."""
+    if not admin_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Admin user ID is missing"
+        )
+    
+    sessions = get_impersonation_sessions(db, admin_user.id)
+    
+    result = []
+    for session in sessions:
+        if not session.id:
+            continue
+            
+        # Get admin and target user info
+        admin_stmt = select(User).where(User.id == session.admin_user_id)
+        admin = db.exec(admin_stmt).first()
+        
+        target_stmt = select(User).where(User.id == session.target_user_id)
+        target = db.exec(target_stmt).first()
+        
+        if admin and target and session.created_at:
+            result.append(ImpersonationInfo(
+                id=session.id,
+                admin_user_id=session.admin_user_id,
+                admin_username=admin.username,
+                target_user_id=session.target_user_id,
+                target_username=target.username,
+                reason=session.reason,
+                created_at=session.created_at,
+                expires_at=session.expires_at,
+                ended_at=session.ended_at,
+                status=session.status
+            ))
+    
+    return result
+
+
+@router.get("/whoami", response_model=dict, tags=["Authentication"])
+async def whoami(
+    user_and_context: tuple[User, Optional[dict]] = Depends(get_current_user_with_impersonation),
+    db: Session = Depends(get_db)
+):
+    """Get current user info including impersonation status."""
+    user, impersonation_context = user_and_context
+    
+    result = {
+        "user_id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "is_admin": user.is_admin,
+        "is_impersonating": impersonation_context is not None
+    }
+    
+    if impersonation_context:
+        # Get admin user info
+        admin_stmt = select(User).where(User.id == impersonation_context["admin_user_id"])
+        admin_user = db.exec(admin_stmt).first()
+        
+        result["impersonation"] = {
+            "admin_user_id": impersonation_context["admin_user_id"],
+            "admin_username": admin_user.username if admin_user else "Unknown",
+            "session_id": impersonation_context["impersonation_session_id"],
+            "reason": impersonation_context.get("reason")
+        }
+    
+    return result

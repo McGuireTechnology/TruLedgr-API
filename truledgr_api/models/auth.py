@@ -30,6 +30,8 @@ class SessionStatus(str, Enum):
 class UserSession(BaseModel, table=True):
     """User session tracking table."""
     
+    __tablename__ = "user_sessions"
+    
     user_id: str = Field(foreign_key="users.id", index=True)
     session_token: str = Field(unique=True, index=True)
     refresh_token: Optional[str] = Field(default=None, unique=True, index=True)
@@ -44,7 +46,9 @@ class UserSession(BaseModel, table=True):
 
 
 class UserOAuthAccount(BaseModel, table=True):
-    """OAuth2 account linking table."""
+    """User OAuth account linking table."""
+    
+    __tablename__ = "user_oauth_accounts"
     
     user_id: str = Field(foreign_key="users.id", index=True)
     provider: OAuthProvider
@@ -121,3 +125,53 @@ class UserAuthInfo(SQLModel):
 class RevokeSessionRequest(SQLModel):
     """Request to revoke a specific session."""
     session_id: str
+
+
+class ImpersonationSession(BaseModel, table=True):
+    """Tracks admin impersonation sessions."""
+    
+    __tablename__ = "impersonation_sessions"
+    
+    admin_user_id: str = Field(foreign_key="users.id", index=True)
+    target_user_id: str = Field(foreign_key="users.id", index=True) 
+    session_token: str = Field(unique=True, index=True)
+    reason: Optional[str] = None
+    expires_at: datetime
+    ended_at: Optional[datetime] = None
+    status: SessionStatus = Field(default=SessionStatus.ACTIVE)
+
+
+class ImpersonateRequest(SQLModel):
+    """Request to start impersonating a user."""
+    target_user_id: str
+    reason: Optional[str] = None
+
+
+class ImpersonateResponse(SQLModel):
+    """Response for successful impersonation."""
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+    expires_in: int
+    target_user_id: str
+    admin_user_id: str
+    impersonation_session_id: str
+
+
+class EndImpersonationRequest(SQLModel):
+    """Request to end impersonation session."""
+    impersonation_session_id: Optional[str] = None  # If None, ends current session
+
+
+class ImpersonationInfo(SQLModel):
+    """Information about an impersonation session."""
+    id: str
+    admin_user_id: str
+    admin_username: str
+    target_user_id: str
+    target_username: str
+    reason: Optional[str]
+    created_at: datetime
+    expires_at: datetime
+    ended_at: Optional[datetime]
+    status: SessionStatus
