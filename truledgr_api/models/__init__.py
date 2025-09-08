@@ -37,6 +37,48 @@ from .auth import (
     UserAuthInfo,
     RevokeSessionRequest
 )
+from .account import (
+    Account,
+    AccountType,
+    AccountStatus,
+    AccountCreate,
+    AccountRead,
+    AccountUpdate,
+    AccountTypeInfo
+)
+from .transaction import (
+    Transaction,
+    TransactionStatus,
+    TransactionCategory,
+    TransactionCreate,
+    TransactionRead,
+    TransactionUpdate,
+    TransactionTypeInfo,
+    TransactionCategoryInfo
+)
+from .institution import (
+    Institution,
+    InstitutionType,
+    InstitutionStatus,
+    InstitutionCreate,
+    InstitutionRead,
+    InstitutionUpdate,
+    InstitutionTypeInfo
+)
+from .category import (
+    Category,
+    CategoryType,
+    CategoryCreate,
+    CategoryRead,
+    CategoryUpdate,
+    CategoryTypeInfo
+)
+from .payee import (
+    Payee,
+    PayeeCreate,
+    PayeeRead,
+    PayeeUpdate
+)
 
 # Export models for easy importing
 __all__ = [
@@ -53,5 +95,37 @@ __all__ = [
     "SessionInfo",
     "OAuthAccountInfo",
     "UserAuthInfo",
-    "RevokeSessionRequest"
+    "RevokeSessionRequest",
+    "Account",
+    "AccountType",
+    "AccountStatus",
+    "AccountCreate",
+    "AccountRead",
+    "AccountUpdate",
+    "AccountTypeInfo",
+    "Transaction",
+    "TransactionStatus",
+    "TransactionCategory",
+    "TransactionCreate",
+    "TransactionRead",
+    "TransactionUpdate",
+    "TransactionTypeInfo",
+    "TransactionCategoryInfo",
+    "Institution",
+    "InstitutionType",
+    "InstitutionStatus",
+    "InstitutionCreate",
+    "InstitutionRead",
+    "InstitutionUpdate",
+    "InstitutionTypeInfo",
+    "Category",
+    "CategoryType",
+    "CategoryCreate",
+    "CategoryRead",
+    "CategoryUpdate",
+    "CategoryTypeInfo",
+    "Payee",
+    "PayeeCreate",
+    "PayeeRead",
+    "PayeeUpdate"
 ]
