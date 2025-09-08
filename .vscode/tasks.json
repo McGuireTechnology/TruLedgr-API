@@ -1,0 +1,273 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Setup: Install Dependencies",
+            "type": "shell",
+            "command": "if [ ! -d .venv ]; then python3 -m venv .venv; fi && source .venv/bin/activate && python -m pip install --upgrade pip && pip install -e '.[dev]'",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "Setup: Install Production Dependencies",
+            "type": "shell",
+            "command": "source .venv/bin/activate && pip install -e .",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            }
+        },
+        {
+            "label": "FastAPI: Run Server",
+            "type": "shell",
+            "command": "source .venv/bin/activate && uvicorn truledgr_api.main:app --reload --host 127.0.0.1 --port 8000",
+            "group": "build",
+            "isBackground": true,
+            "problemMatcher": {
+                "pattern": [
+                    {
+                        "regexp": ".",
+                        "file": 1,
+                        "location": 2,
+                        "message": 3
+                    }
+                ],
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".*Uvicorn running on.*",
+                    "endsPattern": ".*Application startup complete.*"
+                }
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "dedicated",
+                "showReuseMessage": false,
+                "clear": true
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Setup: Install Dependencies"
+        },
+        {
+            "label": "Test: Run All Tests",
+            "type": "shell",
+            "command": "source .venv/bin/activate && python -m pytest",
+            "group": "test",
+            "problemMatcher": "$python",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Setup: Install Dependencies"
+        },
+        {
+            "label": "Test: Run Tests with Coverage",
+            "type": "shell",
+            "command": "source .venv/bin/activate && python -m pytest --cov=truledgr_api --cov-report=html --cov-report=term-missing",
+            "group": "test",
+            "problemMatcher": "$python",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Setup: Install Dependencies"
+        },
+        {
+            "label": "Lint: Format Code (Black)",
+            "type": "shell",
+            "command": "source .venv/bin/activate && black truledgr_api tests",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Setup: Install Dependencies"
+        },
+        {
+            "label": "Lint: Check Imports (isort)",
+            "type": "shell",
+            "command": "source .venv/bin/activate && isort truledgr_api tests --check-only --diff",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Setup: Install Dependencies"
+        },
+        {
+            "label": "Lint: Type Check (MyPy)",
+            "type": "shell",
+            "command": "source .venv/bin/activate && mypy truledgr_api",
+            "group": "build",
+            "problemMatcher": "$python",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Setup: Install Dependencies"
+        },
+        {
+            "label": "Lint: Run All Linting",
+            "type": "shell",
+            "command": "source .venv/bin/activate && black truledgr_api tests && isort truledgr_api tests && flake8 truledgr_api tests && mypy truledgr_api",
+            "group": "build",
+            "problemMatcher": "$python",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Setup: Install Dependencies"
+        },
+        {
+            "label": "Database: Initialize",
+            "type": "shell",
+            "command": "source .venv/bin/activate && alembic init alembic",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Setup: Install Dependencies"
+        },
+        {
+            "label": "Database: Create Migration",
+            "type": "shell",
+            "command": "source .venv/bin/activate && alembic revision --autogenerate -m \"${input:migrationMessage}\"",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Setup: Install Dependencies"
+        },
+        {
+            "label": "Database: Migrate",
+            "type": "shell",
+            "command": "source .venv/bin/activate && alembic upgrade head",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Setup: Install Dependencies"
+        },
+        {
+            "label": "Database: Downgrade",
+            "type": "shell",
+            "command": "source .venv/bin/activate && alembic downgrade -1",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "dependsOn": "Setup: Install Dependencies"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "migrationMessage",
+            "description": "Migration message",
+            "default": "Initial migration",
+            "type": "promptString"
+        }
+    ]
+}
