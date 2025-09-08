@@ -7,7 +7,7 @@ from typing import List
 from ..database import get_db
 from ..models.user import User, UserCreate, UserRead, UserUpdate
 
-router = APIRouter(prefix="/users", tags=["users"])
+router = APIRouter(tags=["Users"])
 
 
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -56,7 +56,7 @@ async def read_users(skip: int = 0, limit: int = 100, db: Session = Depends(get_
 
 
 @router.get("/{user_id}", response_model=UserRead)
-async def read_user(user_id: int, db: Session = Depends(get_db)):
+async def read_user(user_id: str, db: Session = Depends(get_db)):
     """Get a specific user by ID."""
     statement = select(User).where(User.id == user_id)
     user = db.exec(statement).first()
@@ -69,7 +69,7 @@ async def read_user(user_id: int, db: Session = Depends(get_db)):
 
 
 @router.put("/{user_id}", response_model=UserRead)
-async def update_user(user_id: int, user_update: UserUpdate, db: Session = Depends(get_db)):
+async def update_user(user_id: str, user_update: UserUpdate, db: Session = Depends(get_db)):
     """Update a user."""
     statement = select(User).where(User.id == user_id)
     db_user = db.exec(statement).first()
@@ -95,7 +95,7 @@ async def update_user(user_id: int, user_update: UserUpdate, db: Session = Depen
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: int, db: Session = Depends(get_db)):
+async def delete_user(user_id: str, db: Session = Depends(get_db)):
     """Delete a user."""
     statement = select(User).where(User.id == user_id)
     user = db.exec(statement).first()
